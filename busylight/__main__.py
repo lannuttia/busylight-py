@@ -10,44 +10,77 @@ from azure.iot.device.aio import IoTHubDeviceClient, ProvisioningDeviceClient
 from azure.iot.device import MethodResponse
 from gpiozero import LED
 
-from _cli import args
+from ._cli import args
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Drop the import error on the floor (╯°□°)╯︵ ┻━┻
+    pass
+
+_parser = argparse.ArgumentParser(description='An Azure IoT Busy Light Device')
+_parser.add_argument(
+    '--id-scope',
+    type=str,
+    help='The ID Scope provided by Azure',
+    default=getenv('BUSY_LIGHT_ID_SCOPE')
+)
+_parser.add_argument(
+    '--device-id',
+    type=str,
+    help='The Device ID provided by Azure',
+    default=getenv('BUSY_LIGHT_DEVICE_ID')
+)
+_parser.add_argument(
+    '--primary-key',
+    type=str,
+    help='The Primary Key provided by Azure',
+    default=getenv('BUSY_LIGHT_PRIMARY_KEY')
+)
+_parser.add_argument(
+    '-v', '--verbosity',
+    action='count',
+    help='increase output verbosity',
+    default=0
+)
+args = _parser.parse_args()
 
 logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 if args.verbosity == 0:
-    logger.setLevel(logging.ERROR)
+    _logger.setLevel(logging.ERROR)
 elif args.verbosity == 1:
-    logger.setLevel(logging.WARN)
+    _logger.setLevel(logging.WARN)
 elif args.verbosity == 2:
-    logger.setLevel(logging.INFO)
+    _logger.setLevel(logging.INFO)
 elif args.verbosity >= 3:
-    logger.setLevel(logging.DEBUG)
+    _logger.setLevel(logging.DEBUG)
     if args.verbosity > 3:
-        logger.debug('Whoa... I can\'t be that verbose')
+        _logger.debug('Whoa... I can\'t be that verbose')
 
-outputs = {
+_outputs = {
     'red': LED(6),
     'yellow': LED(13),
     'green': LED(19),
     'buzzer': LED(26)
 }
 
-request_handlers = {
+_request_handlers = {
     'Busy': lambda: (
-        outputs['red'].on(),
-        outputs['buzzer'].blink(n=3)
+        _outputs['red'].on(),
+        _outputs['buzzer'].blink(n=3)
     ),
-    'Warn': outputs['yellow'].on,
-    'Free': outputs['green'].on,
+    'Warn': _outputs['yellow'].on,
+    'Free': _outputs['green'].on,
 }
 
-# Clear all outputs
+# Clear all _outputs
 
-def _clear_outputs():
+def _clear__outputs():
     """Clears all output pins
     """
-    for led in outputs.values():
+    for led in _outputs.values():
         led.off()
 
 async def main():
@@ -58,18 +91,18 @@ async def main():
     """
     device_client = None
     try:
-        logger.debug('Attempting to create a provisioning device client')
+        _logger.debug('Attempting to create a provisioning device client')
         provisioning_device_client = ProvisioningDeviceClient.create_from_symmetric_key(
             provisioning_host='global.azure-devices-provisioning.net',
             registration_id=args.device_id,
             id_scope=args.id_scope,
             symmetric_key=args.primary_key,
         )
-        logger.info('Successfully created a provisioning device client')
+        _logger.info('Successfully created a provisioning device client')
 
-        logger.debug('Attempting to register provisioning device client')
+        _logger.debug('Attempting to register provisioning device client')
         registration_result = await provisioning_device_client.register()
-        logger.info('Successfully registered provisioning device client')
+        _logger.info('Successfully registered provisioning device client')
 
         # build the connection string
         conn_str = 'HostName=' + registration_result.registration_state.assigned_hub + \
@@ -79,35 +112,35 @@ async def main():
         # The client object is used to interact with your Azure IoT Central.
         device_client = IoTHubDeviceClient.create_from_connection_string(conn_str)
 
-        logger.info('Connecting...')
+        _logger.info('Connecting...')
         await device_client.connect()
-        logger.info('Connected')
+        _logger.info('Connected')
 
         # Get the current routine
         twin = await device_client.get_twin()
-        logger.debug('Got twin: %s', twin)
+        _logger.debug('Got twin: %s', twin)
 
         routine = None
         try:
             routine = twin['reported']['routine']
-            logger.debug('Previous routine was %s', routine)
+            _logger.debug('Previous routine was %s', routine)
         except KeyError:
-            logger.warning('No previously reported routine found')
+            _logger.warning('No previously reported routine found')
 
-        if routine is not None and routine in request_handlers:
-            request_handlers[routine]()
+        if routine is not None and routine in _request_handlers:
+            _request_handlers[routine]()
 
         while True:
             method_request = await device_client.receive_method_request()
-            logger.debug('Handling method: %s', method_request.name)
-            _clear_outputs()
+            _logger.debug('Handling method: %s', method_request.name)
+            _clear__outputs()
             result = True
             status = 200
-            if method_request.name in request_handlers.keys():
-                logger.debug('Running %s task', method_request.name)
-                request_handlers[method_request.name]()
+            if method_request.name in _request_handlers.keys():
+                _logger.debug('Running %s task', method_request.name)
+                _request_handlers[method_request.name]()
             else:
-                logger.error('Unknown method: %s', method_request.name)
+                _logger.error('Unknown method: %s', method_request.name)
                 result = False
                 status = 500
             payload = {'result': result, 'routine': method_request.name}
@@ -121,10 +154,10 @@ async def main():
         pass
     finally:
         if device_client is not None:
-            logger.debug('Attempting to disconnect device client')
+            _logger.debug('Attempting to disconnect device client')
             await device_client.disconnect()
-            logger.info('Successfully disconnected device client')
-        _clear_outputs()
+            _logger.info('Successfully disconnected device client')
+        _clear__outputs()
 
 if __name__ == '__main__':
     try:

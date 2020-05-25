@@ -3,4 +3,4 @@ build
 busy_light.egg-info
 .env
 .vscode
-busy-light/__pycache__
+busylight/__pycache__
