@@ -7,7 +7,7 @@ NAME = 'busylight'
 
 setuptools.setup(
     name=NAME,
-    version='0.0.2',
+    version='0.0.3',
     author='Anthony Lannutti',
     author_email='lannuttia@gmail.com',
     description='An Azure IoT busy light',
