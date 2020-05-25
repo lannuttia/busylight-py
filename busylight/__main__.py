@@ -4,13 +4,15 @@
 This application integrates with Azure IoT Central and Azure Logic Apps to run
 different routines when a command is sent to the device via Azure IoT Central.
 """
+from os import getenv
+
 import asyncio
 import logging
+import argparse
 from azure.iot.device.aio import IoTHubDeviceClient, ProvisioningDeviceClient
 from azure.iot.device import MethodResponse
 from gpiozero import LED
 
-from ._cli import args
 try:
     from dotenv import load_dotenv
     load_dotenv()
