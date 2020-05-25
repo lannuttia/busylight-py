@@ -1,0 +1,6 @@
+dist
+build
+busy_light.egg-info
+.env
+.vscode
+busy-light/__pycache__

@@ -1,0 +1,5 @@
+gpiozero~=1.5
+azure-iot-device~=2.1
+pylint~=2.5
+python-dotenv~=0.13
+bump2version~=1.0
